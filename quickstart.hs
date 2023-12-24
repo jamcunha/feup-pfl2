@@ -41,8 +41,47 @@ state2StrHelper ((x, B True):xs) = x ++ "=True," ++ state2StrHelper xs
 state2StrHelper ((x, B False):xs) = x ++ "=False," ++ state2StrHelper xs
 state2StrHelper ((x, I y):xs) = x ++ "=" ++ show y ++ "," ++ state2StrHelper xs
 
--- run :: (Code, Stack, State) -> (Code, Stack, State)
-run = undefined -- TODO
+-- TODO: Check the add, mult and sub run-time errors
+run :: (Code, Stack, State) -> (Code, Stack, State)
+run ([ ], stack, state) = ([ ], stack, state)
+run (Push x:code, stack, state) = run (code, I x:stack, state)
+run (Add:code, I x:I y:stack, state) = run (code, I (x + y):stack, state)
+run (Add:code, _ :B y:stack, state) = error "Run-time error"
+run (Add:code, B x:_:stack, state) = error "Run-time error"
+run (Mult:code, I x:I y:stack, state) = run (code, I (x * y):stack, state)
+run (Mult:code, _ :B y:stack, state) = error "Run-time error"
+run (Mult:code, B x:_:stack, state) = error "Run-time error"
+run (Sub:code, I x:I y:stack, state) = run (code, I (x - y):stack, state)
+run (Sub:code, _ :B y:stack, state) = error "Run-time error"
+run (Sub:code, B x:_:stack, state) = error "Run-time error"
+run (Tru:code, stack, state) = run (code, B True:stack, state)
+run (Fals:code, stack, state) = run (code, B False:stack, state)
+run (Equ:code, I x:I y:stack, state) = run (code, B (x == y):stack, state)
+run (Equ:code, B x:B y:stack, state) = run (code, B (x == y):stack, state)
+run (Le:code, I x:I y:stack, state) = run (code, B (x <=y ):stack, state)
+run (Le:code, B x:B y:stack, state) = error "Run-time error"
+run (And:code, B x:B y:stack, state) = run (code, B (x && y):stack, state)
+run (And:code, I x:I y:stack, state) = error "Run-time error" -- TODO: check if this is correct
+run (Neg:code, B x:stack, state) = run (code, B (not x):stack, state)
+run (Neg:code, I x:stack, state) = error "Run-time error" -- TODO: check if this is correct
+run (Fetch x:code, stack, state) = run (code, findInState x state:stack, state)
+run (Store x:code, y:stack, state) = run (code, stack, (x, y):removeInState x state)
+run (Noop:code, stack, state) = run (code, stack, state)
+run (Branch code1 code2:code, B True:stack, state) = run (code1 ++ code, stack, state)
+run (Branch code1 code2:code, B False:stack, state) = run (code2 ++ code, stack, state)
+run (Loop code1 code2:code, stack, state) = run (code1 ++ [Branch (code2 ++ [Loop code1 code2]) [Noop]] ++ code, stack, state)
+
+findInState :: String -> State -> StackT
+findInState x [ ] = error "Run-time error"
+findInState x ((y, z):xs)
+    | x == y = z
+    | otherwise = findInState x xs
+
+removeInState :: String -> State -> State
+removeInState x [ ] = [ ]
+removeInState x ((y, z):xs)
+    | x == y = xs
+    | otherwise = (y, z):removeInState x xs
 
 -- To help you test your assembler
 testAssembler :: Code -> (String, String)
