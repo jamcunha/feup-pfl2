@@ -10,17 +10,36 @@ data Inst =
   deriving Show
 type Code = [Inst]
 
--- createEmptyStack :: Stack
-createEmptyStack = undefined -- TODO, Uncomment the function signature after defining Stack
+data StackT = I Integer | B Bool deriving Show
+type Stack = [StackT]
 
--- stack2Str :: Stack -> String
-stack2Str = undefined -- TODO, Uncomment all the other function type declarations as you implement them
+type State = [(String, StackT)]
 
--- createEmptyState :: State
-createEmptyState = undefined -- TODO, Uncomment the function signature after defining State
+createEmptyStack :: Stack
+createEmptyStack = [ ]
 
--- state2Str :: State -> String
-state2Str = undefined -- TODO
+stack2Str :: Stack -> String
+stack2Str [ ] = ""
+stack2Str stack = init (stack2StrHelper stack) -- remove last comma from helper
+
+stack2StrHelper :: Stack -> String
+stack2StrHelper [ ] = ""
+stack2StrHelper (B True:xs) = "True," ++ stack2StrHelper xs
+stack2StrHelper (B False:xs) = "False," ++ stack2StrHelper xs
+stack2StrHelper (I x:xs) = show x ++ "," ++ stack2StrHelper xs
+
+createEmptyState :: State
+createEmptyState = [ ]
+
+state2Str :: State -> String
+state2Str [ ] = ""
+state2Str state = init (state2StrHelper state) -- remove last comma from helper
+
+state2StrHelper :: State -> String
+state2StrHelper [ ] = ""
+state2StrHelper ((x, B True):xs) = x ++ "=True," ++ state2StrHelper xs
+state2StrHelper ((x, B False):xs) = x ++ "=False," ++ state2StrHelper xs
+state2StrHelper ((x, I y):xs) = x ++ "=" ++ show y ++ "," ++ state2StrHelper xs
 
 -- run :: (Code, Stack, State) -> (Code, Stack, State)
 run = undefined -- TODO
