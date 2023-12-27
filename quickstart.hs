@@ -58,10 +58,16 @@ run (Tru:code, stack, state) = run (code, B True:stack, state)
 run (Fals:code, stack, state) = run (code, B False:stack, state)
 run (Equ:code, I x:I y:stack, state) = run (code, B (x == y):stack, state)
 run (Equ:code, B x:B y:stack, state) = run (code, B (x == y):stack, state)
+run (Equ:code, _ :B y:stack, state) = error "Run-time error"
+run (Equ:code, B x:_:stack, state) = error "Run-time error"
 run (Le:code, I x:I y:stack, state) = run (code, B (x <=y ):stack, state)
 run (Le:code, B x:B y:stack, state) = error "Run-time error"
+run (Le:code, _ :B y:stack, state) = error "Run-time error"
+run (Le:code, B x:_:stack, state) = error "Run-time error"
 run (And:code, B x:B y:stack, state) = run (code, B (x && y):stack, state)
-run (And:code, I x:I y:stack, state) = error "Run-time error" -- TODO: check if this is correct
+run (And:code, I x:I y:stack, state) = error "Run-time error"
+run (And:code, _ :I y:stack, state) = error "Run-time error"
+run (And:code, I x:_:stack, state) = error "Run-time error"
 run (Neg:code, B x:stack, state) = run (code, B (not x):stack, state)
 run (Neg:code, I x:stack, state) = error "Run-time error" -- TODO: check if this is correct
 run (Fetch x:code, stack, state) = run (code, findInState x state:stack, state)
@@ -107,16 +113,49 @@ testAssembler code = (stack2Str stack, state2Str state)
 
 -- Part 2
 
--- TODO: Define the types Aexp, Bexp, Stm and Program
+data Exp = Ax Aexp | Bx Bexp
 
--- compA :: Aexp -> Code
-compA = undefined -- TODO
+data Aexp = Var String          -- Variable
+        | Const Integer         -- Constant
+        | AAdd Aexp Aexp        -- Addition
+        | MMult Aexp Aexp       -- Multiplication
+        | SSub Aexp Aexp        -- Subtraction
 
--- compB :: Bexp -> Code
-compB = undefined -- TODO
+data Bexp = TRUE                -- TRUE
+        | FALSE                 -- FALSE
+        | NNeg Bexp             -- Negation
+        | AAnd Bexp Bexp        -- Conjunction
+        | LLe Aexp Aexp         -- Less than or equal to
+        | EEq Exp Exp           -- Equality
 
--- compile :: Program -> Code
-compile = undefined -- TODO
+data Stm = Assign String Exp    -- Assignment
+        | If Bexp [Stm] [Stm]   -- If-then-else
+        | While Bexp [Stm]      -- While loop
+
+compE :: Exp -> Code
+compE (Ax x) = compA x
+compE (Bx x) = compB x
+
+compA :: Aexp -> Code
+compA (Var x) = [Fetch x]
+compA (Const x) = [Push x]
+compA (AAdd x y) = compA x ++ compA y ++ [Add]
+compA (MMult x y) = compA x ++ compA y ++ [Mult]
+compA (SSub x y) = compA x ++ compA y ++ [Sub]
+
+compB :: Bexp -> Code
+compB TRUE = [Tru]
+compB FALSE = [Fals]
+compB (NNeg x) = compB x ++ [Neg]
+compB (AAnd x y) = compB x ++ compB y ++ [And]
+compB (LLe x y) = compA x ++ compA y ++ [Le]
+compB (EEq x y) = compE x ++ compE y ++ [Equ]
+
+compile :: [Stm] -> Code
+compile [ ] = [ ]
+compile (Assign x y:xs) = compE y ++ [Store x] ++ compile xs
+compile (If x y z:xs) = compB x ++ [Branch (compile y) (compile z)] ++ compile xs
+compile (While x y:xs) = [Loop (compB x) (compile y)] ++ compile xs
 
 -- parse :: String -> Program
 parse = undefined -- TODO
