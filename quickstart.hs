@@ -1,6 +1,8 @@
 -- PFL 2023/24 - Haskell practical assignment quickstart
 -- Updated on 15/12/2023
 
+import Data.Char
+
 -- Part 1
 
 -- Do not modify our definition of Inst and Code
@@ -60,7 +62,7 @@ run (Equ:code, I x:I y:stack, state) = run (code, B (x == y):stack, state)
 run (Equ:code, B x:B y:stack, state) = run (code, B (x == y):stack, state)
 run (Equ:code, _ :B y:stack, state) = error "Run-time error"
 run (Equ:code, B x:_:stack, state) = error "Run-time error"
-run (Le:code, I x:I y:stack, state) = run (code, B (x <=y ):stack, state)
+run (Le:code, I x:I y:stack, state) = run (code, B (x <= y):stack, state)
 run (Le:code, B x:B y:stack, state) = error "Run-time error"
 run (Le:code, _ :B y:stack, state) = error "Run-time error"
 run (Le:code, B x:_:stack, state) = error "Run-time error"
@@ -157,13 +159,122 @@ compile (Assign x y:xs) = compE y ++ [Store x] ++ compile xs
 compile (If x y z:xs) = compB x ++ [Branch (compile y) (compile z)] ++ compile xs
 compile (While x y:xs) = [Loop (compB x) (compile y)] ++ compile xs
 
+--------------  TEST  ----------------
+
+data Token
+    = TVar String
+    | TConst Integer
+    | TPlus
+    | TTimes
+    | TMinus
+    | TTrue
+    | TFalse
+    | TNot
+    | TAnd
+    | TLe
+    | TEqBool
+    | TEqArith
+    | TAssign
+    | TIf
+    | TThen
+    | TElse
+    | TWhile
+    | TDo
+    | TSemi
+    | TOpenParen
+    | TCloseParen
+    deriving (Show, Eq)
+
+lexer :: String -> [Token]
+lexer [ ] = [ ]
+lexer (' ':xs) = lexer xs
+lexer ('\n':xs) = lexer xs
+lexer ('\t':xs) = lexer xs
+lexer ('+':xs) = TPlus:lexer xs
+lexer ('*':xs) = TTimes:lexer xs
+lexer ('-':xs) = TMinus:lexer xs
+lexer ('=':'=':xs) = TEqArith:lexer xs
+lexer ('=':xs) = TEqBool:lexer xs
+lexer ('<':'=':xs) = TLe:lexer xs
+lexer ('(':xs) = TOpenParen:lexer xs
+lexer (')':xs) = TCloseParen:lexer xs
+lexer (';':xs) = TSemi:lexer xs
+lexer ('a':'n':'d':xs) = TAnd:lexer xs
+lexer ('n':'o':'t':xs) = TNot:lexer xs
+lexer ('i':'f':xs) = TIf:lexer xs
+lexer ('t':'h':'e':'n':xs) = TThen:lexer xs
+lexer ('e':'l':'s':'e':xs) = TElse:lexer xs
+lexer ('w':'h':'i':'l':'e':xs) = TWhile:lexer xs
+lexer ('d':'o':xs) = TDo:lexer xs
+lexer (':':'=':xs) = TAssign:lexer xs
+lexer ('T':'r':'u':'e':xs) = TTrue:lexer xs
+lexer ('F':'a':'l':'s':'e':xs) = TFalse:lexer xs
+lexer (x:xs)
+    | isDigit x = TConst (read (x:takeWhile isDigit xs)) : lexer (dropWhile isDigit xs)
+    | isAlpha x = TVar (x:takeWhile isAlphaNum xs) : lexer (dropWhile isAlphaNum xs)
+    | otherwise = error "Lexer error"
+
+-- testLexer could have a template like `template :: String -> [Token] -> IO ()` used like template input expectedOutput,
+-- but this is for simple testing and will be deleted. If not deleted, write the template function
+testLexer :: Int -> IO ()
+testLexer 1 = putStrLn "Input: \"x := 5; x := x - 1;\"\n" >> putStr "Output: " >> print result >> putStrLn ""
+    >> putStrLn "Expected output: [TVar \"x\",TAssign,TConst 5,TSemi,TVar \"x\",TAssign,TVar \"x\",TMinus,TConst 1,TSemi]\n"
+    >> if result == [TVar "x",TAssign,TConst 5,TSemi,TVar "x",TAssign,TVar "x",TMinus,TConst 1,TSemi]
+        then putStrLn "Test passed!"
+        else putStrLn "Test failed!"
+    where result = lexer "x := 5; x := x - 1;"
+
+testLexer 2 = putStrLn "Input: \"if (not True and 2 <= 5 = 3 == 4) then x :=1; else y := 2;\"\n" >> putStr "Output: " >> print result >> putStrLn ""
+    >> putStrLn "Expected output: [TIf,TOpenParen,TNot,TTrue,TAnd,TConst 2,TLe,TConst 5,TEqBool,TConst 3,TEqArith,TConst 4,TCloseParen,TThen,TVar \"x\",TAssign,TConst 1,TSemi,TElse,TVar \"y\",TAssign,TConst 2,TSemi]\n"
+    >> if result == [TIf,TOpenParen,TNot,TTrue,TAnd,TConst 2,TLe,TConst 5,TEqBool,TConst 3,TEqArith,TConst 4,TCloseParen,TThen,TVar "x",TAssign,TConst 1,TSemi,TElse,TVar "y",TAssign,TConst 2,TSemi]
+        then putStrLn "Test passed!"
+        else putStrLn "Test failed!"
+    where result = lexer "if (not True and 2 <= 5 = 3 == 4) then x :=1; else y := 2;"
+
+testLexer 3 = putStrLn "Input: \"x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;)\"\n" >> putStr "Output: " >> print result >> putStrLn ""
+    >> putStrLn "Expected output: [TVar \"x\",TAssign,TConst 42,TSemi,TIf,TVar \"x\",TLe,TConst 43,TThen,TVar \"x\",TAssign,TConst 1,TSemi,TElse,TOpenParen,TVar \"x\",TAssign,TConst 33,TSemi,TVar \"x\",TAssign,TVar \"x\",TPlus,TConst 1,TSemi,TCloseParen]\n"
+    >> if result == [TVar "x",TAssign,TConst 42,TSemi,TIf,TVar "x",TLe,TConst 43,TThen,TVar "x",TAssign,TConst 1,TSemi,TElse,TOpenParen,TVar "x",TAssign,TConst 33,TSemi,TVar "x",TAssign,TVar "x",TPlus,TConst 1,TSemi,TCloseParen]
+        then putStrLn "Test passed!"
+        else putStrLn "Test failed!"
+    where result = lexer "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;)"
+
+testLexer 4 = putStrLn "Input: \"x := 42; if x <= 43 then x := 1; else x := 33; x := x+1;\"\n" >> putStr "Output: " >> print result >> putStrLn ""
+    >> putStrLn "Expected output: [TVar \"x\",TAssign,TConst 42,TSemi,TIf,TVar \"x\",TLe,TConst 43,TThen,TVar \"x\",TAssign,TConst 1,TSemi,TElse,TVar \"x\",TAssign,TConst 33,TSemi,TVar \"x\",TAssign,TVar \"x\",TPlus,TConst 1,TSemi]\n"
+    >> if result == [TVar "x",TAssign,TConst 42,TSemi,TIf,TVar "x",TLe,TConst 43,TThen,TVar "x",TAssign,TConst 1,TSemi,TElse,TVar "x",TAssign,TConst 33,TSemi,TVar "x",TAssign,TVar "x",TPlus,TConst 1,TSemi]
+        then putStrLn "Test passed!"
+        else putStrLn "Test failed!"
+    where result = lexer "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1;"
+
+testLexer 5 = putStrLn "Input: \"x := 42; if x <= 43 then x := 1; else x := 33; x := x+1; z := x+x;\"\n" >> putStr "Output: " >> print result >> putStrLn ""
+    >> putStrLn "Expected output: [TVar \"x\",TAssign,TConst 42,TSemi,TIf,TVar \"x\",TLe,TConst 43,TThen,TVar \"x\",TAssign,TConst 1,TSemi,TElse,TVar \"x\",TAssign,TConst 33,TSemi,TVar \"x\",TAssign,TVar \"x\",TPlus,TConst 1,TSemi,TVar \"z\",TAssign,TVar \"x\",TPlus,TVar \"x\",TSemi]\n"
+    >> if result == [TVar "x",TAssign,TConst 42,TSemi,TIf,TVar "x",TLe,TConst 43,TThen,TVar "x",TAssign,TConst 1,TSemi,TElse,TVar "x",TAssign,TConst 33,TSemi,TVar "x",TAssign,TVar "x",TPlus,TConst 1,TSemi,TVar "z",TAssign,TVar "x",TPlus,TVar "x",TSemi]
+        then putStrLn "Test passed!"
+        else putStrLn "Test failed!"
+    where result = lexer "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1; z := x+x;"
+
+testLexer 6 = putStrLn "Input: \"x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);\"\n" >> putStr "Output: " >> print result >> putStrLn ""
+    >> putStrLn "Expected output: [TVar \"x\",TAssign,TConst 2,TSemi,TVar \"y\",TAssign,TOpenParen,TVar \"x\",TMinus,TConst 3,TCloseParen,TTimes,TOpenParen,TConst 4,TPlus,TConst 2,TTimes,TConst 3,TCloseParen,TSemi,TVar \"z\",TAssign,TVar \"x\",TPlus,TVar \"x\",TTimes,TOpenParen,TConst 2,TCloseParen,TSemi]\n"
+    >> if result == [TVar "x",TAssign,TConst 2,TSemi,TVar "y",TAssign,TOpenParen,TVar "x",TMinus,TConst 3,TCloseParen,TTimes,TOpenParen,TConst 4,TPlus,TConst 2,TTimes,TConst 3,TCloseParen,TSemi,TVar "z",TAssign,TVar "x",TPlus,TVar "x",TTimes,TOpenParen,TConst 2,TCloseParen,TSemi]
+        then putStrLn "Test passed!"
+        else putStrLn "Test failed!"
+    where result = lexer "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);"
+
+testLexer 7 = putStrLn "Input: \"i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);\"\n" >> putStr "Output: " >> print result >> putStrLn ""
+    >> putStrLn "Expected output: [TVar \"i\",TAssign,TConst 10,TSemi,TVar \"fact\",TAssign,TConst 1,TSemi,TWhile,TOpenParen,TNot,TOpenParen,TVar \"i\",TEqArith,TConst 1,TCloseParen,TCloseParen,TDo,TOpenParen,TVar \"fact\",TAssign,TVar \"fact\",TTimes,TVar \"i\",TSemi,TVar \"i\",TAssign,TVar \"i\",TMinus,TConst 1,TSemi,TCloseParen,TSemi]\n"
+    >> if result == [TVar "i",TAssign,TConst 10,TSemi,TVar "fact",TAssign,TConst 1,TSemi,TWhile,TOpenParen,TNot,TOpenParen,TVar "i",TEqArith,TConst 1,TCloseParen,TCloseParen,TDo,TOpenParen,TVar "fact",TAssign,TVar "fact",TTimes,TVar "i",TSemi,TVar "i",TAssign,TVar "i",TMinus,TConst 1,TSemi,TCloseParen,TSemi]
+        then putStrLn "Test passed!"
+        else putStrLn "Test failed!"
+    where result = lexer "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);"
+
+--------------  TEST  ----------------
+
 -- parse :: String -> Program
-parse = undefined -- TODO
+-- parse = undefined -- TODO
 
 -- To help you test your parser
-testParser :: String -> (String, String)
-testParser programCode = (stack2Str stack, store2Str store)
-  where (_,stack,store) = run(compile (parse programCode), createEmptyStack, createEmptyStore)
+-- testParser :: String -> (String, String)
+-- testParser programCode = (stack2Str stack, store2Str store)
+--   where (_,stack,store) = run(compile (parse programCode), createEmptyStack, createEmptyStore)
 
 -- Examples:
 -- testParser "x := 5; x := x - 1;" == ("","x=4")
