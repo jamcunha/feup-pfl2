@@ -115,13 +115,14 @@ testAssembler code = (stack2Str stack, state2Str state)
 
 -- Part 2
 
-data Exp = Ax Aexp | Bx Bexp
+data Exp = Ax Aexp | Bx Bexp deriving (Show, Eq)
 
 data Aexp = Var String          -- Variable
         | Const Integer         -- Constant
         | AAdd Aexp Aexp        -- Addition
         | MMult Aexp Aexp       -- Multiplication
         | SSub Aexp Aexp        -- Subtraction
+        deriving (Show, Eq)
 
 data Bexp = TRUE                -- TRUE
         | FALSE                 -- FALSE
@@ -129,10 +130,13 @@ data Bexp = TRUE                -- TRUE
         | AAnd Bexp Bexp        -- Conjunction
         | LLe Aexp Aexp         -- Less than or equal to
         | EEq Exp Exp           -- Equality
+        | BoolVar String
+        deriving (Show, Eq)
 
 data Stm = Assign String Exp    -- Assignment
         | If Bexp [Stm] [Stm]   -- If-then-else
         | While Bexp [Stm]      -- While loop
+        deriving (Show, Eq)
 
 compE :: Exp -> Code
 compE (Ax x) = compA x
@@ -141,17 +145,18 @@ compE (Bx x) = compB x
 compA :: Aexp -> Code
 compA (Var x) = [Fetch x]
 compA (Const x) = [Push x]
-compA (AAdd x y) = compA x ++ compA y ++ [Add]
-compA (MMult x y) = compA x ++ compA y ++ [Mult]
-compA (SSub x y) = compA x ++ compA y ++ [Sub]
+compA (AAdd x y) = compA y ++ compA x ++ [Add]
+compA (MMult x y) = compA y ++ compA x ++ [Mult]
+compA (SSub x y) = compA y ++ compA x ++ [Sub]
 
 compB :: Bexp -> Code
 compB TRUE = [Tru]
 compB FALSE = [Fals]
 compB (NNeg x) = compB x ++ [Neg]
-compB (AAnd x y) = compB x ++ compB y ++ [And]
-compB (LLe x y) = compA x ++ compA y ++ [Le]
-compB (EEq x y) = compE x ++ compE y ++ [Equ]
+compB (AAnd x y) = compB y ++ compB x ++ [And]
+compB (LLe x y) = compA y ++ compA x ++ [Le]
+compB (EEq x y) = compE y ++ compE x ++ [Equ]
+compB (BoolVar x) = [Fetch x]
 
 compile :: [Stm] -> Code
 compile [ ] = [ ]
@@ -266,15 +271,77 @@ testLexer 7 = putStrLn "Input: \"i := 10; fact := 1; while (not(i == 1)) do (fac
         else putStrLn "Test failed!"
     where result = lexer "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);"
 
+parseAexpConstVar :: [Token] -> (Aexp, [Token])
+parseAexpConstVar (TConst x:xs) = (Const x, xs)
+parseAexpConstVar (TVar x:xs) = (Var x, xs)
+parseAexpConstVar (TOpenParen:xs)
+    = case parseAexp xs of
+        (x, TCloseParen:xs') -> (x, xs')
+        _ -> error "parseAexpConstVar: Parse error"
+parseAexpConstVar _ = error "parseAexpConstVar: Parse error"
+
+parseAexp :: [Token] -> (Aexp, [Token])
+parseAexp tokens
+    = case parseAexpConstVar tokens of
+        (x, TPlus:xs) -> case parseAexp xs of
+            (y, xs') -> (AAdd x y, xs')
+        (x, TMinus:xs) -> case parseAexp xs of
+            (y, xs') -> (SSub x y, xs')
+        (x, TTimes:xs) -> case parseAexp xs of
+            (y, xs') -> (MMult x y, xs')
+        (x, xs) -> (x, xs)
+
+parseBexpConstVar :: [Token] -> (Bexp, [Token])
+parseBexpConstVar (TTrue:xs) = (TRUE, xs)
+parseBexpConstVar (TFalse:xs) = (FALSE, xs)
+parseBexpConstVar (TVar x:xs) = (BoolVar x, xs)
+parseBexpConstVar (TNot:xs)
+    = case parseBexp xs of
+        (x, xs') -> (NNeg x, xs')
+parseBexpConstVar (TOpenParen:xs)
+    = case parseBexp xs of
+        (x, TCloseParen:xs') -> (x, xs')
+        _ -> error "parseBexpConstVar: Parse error"
+
+parseBexpConstVar _ = error "parseBexpConstVar: Parse error"
+
+parseBexp :: [Token] -> (Bexp, [Token])
+parseBexp tokens
+    = case parseBexpConstVar tokens of
+        (x, TAnd:xs) -> case parseBexp xs of
+            (y, xs') -> (AAnd x y, xs')
+        (x, TEqBool:xs) -> case parseBexp xs of
+            (y, xs') -> (EEq (Bx x) (Bx y), xs')
+        (x, xs) -> (x, xs)
+
+parseBexpWithAexp :: [Token] -> (Bexp, [Token])
+parseBexpWithAexp tokens
+    = case parseAexp tokens of
+        (x, TLe:xs) -> case parseAexp xs of
+            (y, xs') -> (LLe x y, xs')
+        (x, TEqArith:xs) -> case parseAexp xs of
+            (y, xs') -> (EEq (Ax x) (Ax y), xs')
+        (x, xs) -> error "parseBexpWithAexp: Parse error"
+
+parseTokens :: [Token] -> [Stm]
+parseTokens [ ] = [ ]
+parseTokens (TSemi:xs) = parseTokens xs
+parseTokens (TVar x:TAssign:TConst y:xs) = Assign x (Ax n) : parseTokens sn
+    where (n, sn) = parseAexp (TConst y:xs)
+parseTokens (TVar x:TAssign:TVar y:xs) = Assign x (Ax n) : parseTokens sn
+    where (n, sn) = parseAexp (TVar y:xs)
+parseTokens (TVar x:TAssign:TOpenParen:xs) = Assign x (Ax n) : parseTokens sn
+    where (n, sn) = parseAexp (TOpenParen:xs)
+
 --------------  TEST  ----------------
 
--- parse :: String -> Program
--- parse = undefined -- TODO
+parse :: String -> [Stm]
+parse = parseTokens . lexer
 
 -- To help you test your parser
--- testParser :: String -> (String, String)
--- testParser programCode = (stack2Str stack, store2Str store)
---   where (_,stack,store) = run(compile (parse programCode), createEmptyStack, createEmptyStore)
+testParser :: String -> (String, String)
+testParser programCode = (stack2Str stack, state2Str state)
+  where (_,stack,state) = run(compile (parse programCode), createEmptyStack, createEmptyState)
 
 -- Examples:
 -- testParser "x := 5; x := x - 1;" == ("","x=4")
