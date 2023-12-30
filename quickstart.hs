@@ -329,11 +329,17 @@ parseBexpWithAexp tokens
 parseTokens :: [Token] -> [Stm]
 parseTokens [ ] = [ ]
 parseTokens (TSemi:xs) = parseTokens xs
-parseTokens (TVar x:TAssign:TConst y:xs) = Assign x (Ax n) : parseTokens sn
+parseTokens (TVar x:TAssign:TConst y:xs)
+    | isUpper (head x) = error "parseTokens: Parse error - variable name starts with uppercase letter"
+    | otherwise = Assign x (Ax n) : parseTokens sn
     where (n, sn) = parseAexp (TConst y:xs)
-parseTokens (TVar x:TAssign:TVar y:xs) = Assign x (Ax n) : parseTokens sn
+parseTokens (TVar x:TAssign:TVar y:xs)
+    | isUpper (head x) = error "parseTokens: Parse error - variable name starts with uppercase letter"
+    | otherwise = Assign x (Ax n) : parseTokens sn
     where (n, sn) = parseAexp (TVar y:xs)
-parseTokens (TVar x:TAssign:TOpenParen:xs) = Assign x (Ax n) : parseTokens sn
+parseTokens (TVar x:TAssign:TOpenParen:xs)
+    | isUpper (head x) = error "parseTokens: Parse error - variable name starts with uppercase letter"
+    | otherwise = Assign x (Ax n) : parseTokens sn
     where (n, sn) = parseAexp (TOpenParen:xs)
 
 --------------  TEST  ----------------
