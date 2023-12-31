@@ -130,10 +130,9 @@ data Bexp = TRUE                -- TRUE
         | AAnd Bexp Bexp        -- Conjunction
         | LLe Aexp Aexp         -- Less than or equal to
         | EEq Exp Exp           -- Equality
-        | BoolVar String
         deriving (Show, Eq)
 
-data Stm = Assign String Exp    -- Assignment
+data Stm = Assign String Aexp   -- Assignment
         | If Bexp [Stm] [Stm]   -- If-then-else
         | While Bexp [Stm]      -- While loop
         deriving (Show, Eq)
@@ -156,11 +155,10 @@ compB (NNeg x) = compB x ++ [Neg]
 compB (AAnd x y) = compB y ++ compB x ++ [And]
 compB (LLe x y) = compA y ++ compA x ++ [Le]
 compB (EEq x y) = compE y ++ compE x ++ [Equ]
-compB (BoolVar x) = [Fetch x]
 
 compile :: [Stm] -> Code
 compile [ ] = [ ]
-compile (Assign x y:xs) = compE y ++ [Store x] ++ compile xs
+compile (Assign x y:xs) = compA y ++ [Store x] ++ compile xs
 compile (If x y z:xs) = compB x ++ [Branch (compile y) (compile z)] ++ compile xs
 compile (While x y:xs) = [Loop (compB x) (compile y)] ++ compile xs
 
@@ -294,23 +292,22 @@ parseAexp tokens
             (y, xs') -> (MMult x y, xs')
         (x, xs) -> (x, xs)
 
-parseBexpConstVar :: [Token] -> (Bexp, [Token])
-parseBexpConstVar (TTrue:xs) = (TRUE, xs)
-parseBexpConstVar (TFalse:xs) = (FALSE, xs)
-parseBexpConstVar (TVar x:xs) = (BoolVar x, xs)
-parseBexpConstVar (TNot:xs)
+parseBexpConst :: [Token] -> (Bexp, [Token])
+parseBexpConst (TTrue:xs) = (TRUE, xs)
+parseBexpConst (TFalse:xs) = (FALSE, xs)
+parseBexpConst (TNot:xs)
     = case parseBexp xs of
         (x, xs') -> (NNeg x, xs')
-parseBexpConstVar (TOpenParen:xs)
+parseBexpConst (TOpenParen:xs)
     = case parseBexp xs of
         (x, TCloseParen:xs') -> (x, xs')
-        _ -> error "parseBexpConstVar: Parse error"
+        _ -> error "parseBexpConst: Parse error"
 
-parseBexpConstVar _ = error "parseBexpConstVar: Parse error"
+parseBexpConst _ = error "parseBexpConst: Parse error"
 
 parseBexp :: [Token] -> (Bexp, [Token])
 parseBexp tokens
-    = case parseBexpConstVar tokens of
+    = case parseBexpConst tokens of
         (x, TAnd:xs) -> case parseBexp xs of
             (y, xs') -> (AAnd x y, xs')
         (x, TEqBool:xs) -> case parseBexp xs of
@@ -331,16 +328,56 @@ parseTokens [ ] = [ ]
 parseTokens (TSemi:xs) = parseTokens xs
 parseTokens (TVar x:TAssign:TConst y:xs)
     | isUpper (head x) = error "parseTokens: Parse error - variable name starts with uppercase letter"
-    | otherwise = Assign x (Ax n) : parseTokens sn
+    | otherwise = Assign x n : parseTokens sn
     where (n, sn) = parseAexp (TConst y:xs)
 parseTokens (TVar x:TAssign:TVar y:xs)
     | isUpper (head x) = error "parseTokens: Parse error - variable name starts with uppercase letter"
-    | otherwise = Assign x (Ax n) : parseTokens sn
+    | otherwise = Assign x n : parseTokens sn
     where (n, sn) = parseAexp (TVar y:xs)
 parseTokens (TVar x:TAssign:TOpenParen:xs)
     | isUpper (head x) = error "parseTokens: Parse error - variable name starts with uppercase letter"
-    | otherwise = Assign x (Ax n) : parseTokens sn
+    | otherwise = Assign x n : parseTokens sn
     where (n, sn) = parseAexp (TOpenParen:xs)
+
+-- parenthesis not working
+parseTokens (TIf:TConst x:xs) = If n (parseTokens s1) (parseTokens s2) : parseTokens s3
+    where (n, (TThen:rest)) = parseBexpWithAexp (TConst x:xs)
+          s1 = takeWhile (/= TElse) rest
+          ((TElse:s2), s3) = separateLists (dropWhile (/= TElse) rest)
+
+parseTokens (TIf:TVar x:xs) = If n (parseTokens s1) (parseTokens s2) : parseTokens s3
+    where (n, (TThen:rest)) = parseBexpWithAexp (TVar x:xs)
+          s1 = takeWhile (/= TElse) rest
+          ((TElse:s2), s3) = separateLists (dropWhile (/= TElse) rest)
+
+parseTokens (TIf:TNot:xs) = If n (parseTokens s1) (parseTokens s2) : parseTokens s3
+    where (n, (TThen:rest)) = parseBexp (TNot:xs)
+          s1 = takeWhile (/= TElse) rest
+          ((TElse:s2), s3) = separateLists (dropWhile (/= TElse) rest)
+
+parseTokens (TIf:TTrue:xs) = If n (parseTokens s1) (parseTokens s2) : parseTokens s3
+    where (n, (TThen:rest)) = parseBexp (TTrue:xs)
+          s1 = takeWhile (/= TElse) rest
+          ((TElse:s2), s3) = separateLists (dropWhile (/= TElse) rest)
+
+parseTokens (TIf:TFalse:xs) = If n (parseTokens s1) (parseTokens s2) : parseTokens s3
+    where (n, (TThen:rest)) = parseBexp (TFalse:xs)
+          s1 = takeWhile (/= TElse) rest
+          ((TElse:s2), s3) = separateLists (dropWhile (/= TElse) rest)
+
+-- parenthesis not working
+separateLists :: [Token] -> ([Token], [Token])
+separateLists [] = ([], [])
+separateLists (TElse : TOpenParen : rest) =
+  case break (== TCloseParen) rest of
+    (insideParen, afterCloseParen) -> ([TElse, TOpenParen] ++ insideParen ++ [TCloseParen], (drop 1 afterCloseParen))
+
+separateLists (TElse : rest) =
+  case break (\t -> t == TSemi || t == TOpenParen) rest of
+    (beforeSemiOrParen, afterSemiOrParen) ->
+      if null afterSemiOrParen
+        then ([TElse] ++ beforeSemiOrParen ++ [TSemi], [])
+        else ([TElse] ++ beforeSemiOrParen ++ [TSemi], (drop 1 afterSemiOrParen))
 
 --------------  TEST  ----------------
 
