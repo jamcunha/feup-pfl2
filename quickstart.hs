@@ -79,6 +79,7 @@ run (Noop:code, stack, state) = run (code, stack, state)
 run (Branch code1 code2:code, B True:stack, state) = run (code1 ++ code, stack, state)
 run (Branch code1 code2:code, B False:stack, state) = run (code2 ++ code, stack, state)
 run (Loop code1 code2:code, stack, state) = run (code1 ++ [Branch (code2 ++ [Loop code1 code2]) [Noop]] ++ code, stack, state)
+run (_) = error "Run-time error"
 
 findInState :: String -> State -> StackT
 findInState x [ ] = error "Run-time error"
@@ -391,7 +392,7 @@ parseTokens (TWhile:TFalse:xs) = While n (parseTokens s1) : parseTokens s2
           s1 = takeWhile (/= TSemi) rest
           s2 = drop 1 (dropWhile (/= TSemi) rest)
 
--- parenthesis not working
+-- Separating correctly but we have problems with parsing parenthesis
 -- input: Token stream and the separator token
 separateLists :: [Token] -> Token -> ([Token], [Token])
 separateLists [] _ = ([], []) 
