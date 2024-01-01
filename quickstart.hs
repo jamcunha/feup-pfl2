@@ -343,41 +343,70 @@ parseTokens (TVar x:TAssign:TOpenParen:xs)
 parseTokens (TIf:TConst x:xs) = If n (parseTokens s1) (parseTokens s2) : parseTokens s3
     where (n, (TThen:rest)) = parseBexpWithAexp (TConst x:xs)
           s1 = takeWhile (/= TElse) rest
-          ((TElse:s2), s3) = separateLists (dropWhile (/= TElse) rest)
+          ((TElse:s2), s3) = separateLists (dropWhile (/= TElse) rest) TElse
 
 parseTokens (TIf:TVar x:xs) = If n (parseTokens s1) (parseTokens s2) : parseTokens s3
     where (n, (TThen:rest)) = parseBexpWithAexp (TVar x:xs)
           s1 = takeWhile (/= TElse) rest
-          ((TElse:s2), s3) = separateLists (dropWhile (/= TElse) rest)
+          ((TElse:s2), s3) = separateLists (dropWhile (/= TElse) rest) TElse
 
 parseTokens (TIf:TNot:xs) = If n (parseTokens s1) (parseTokens s2) : parseTokens s3
     where (n, (TThen:rest)) = parseBexp (TNot:xs)
           s1 = takeWhile (/= TElse) rest
-          ((TElse:s2), s3) = separateLists (dropWhile (/= TElse) rest)
+          ((TElse:s2), s3) = separateLists (dropWhile (/= TElse) rest) TElse
 
 parseTokens (TIf:TTrue:xs) = If n (parseTokens s1) (parseTokens s2) : parseTokens s3
     where (n, (TThen:rest)) = parseBexp (TTrue:xs)
           s1 = takeWhile (/= TElse) rest
-          ((TElse:s2), s3) = separateLists (dropWhile (/= TElse) rest)
+          ((TElse:s2), s3) = separateLists (dropWhile (/= TElse) rest) TElse
 
 parseTokens (TIf:TFalse:xs) = If n (parseTokens s1) (parseTokens s2) : parseTokens s3
     where (n, (TThen:rest)) = parseBexp (TFalse:xs)
           s1 = takeWhile (/= TElse) rest
-          ((TElse:s2), s3) = separateLists (dropWhile (/= TElse) rest)
+          ((TElse:s2), s3) = separateLists (dropWhile (/= TElse) rest) TElse
+
+parseTokens (TWhile:TConst x:xs) = While n (parseTokens s1) : parseTokens s2
+    where (n, (TDo:rest)) = parseBexpWithAexp (TConst x:xs)
+          s1 = takeWhile (/= TSemi) rest
+          s2 = drop 1 (dropWhile (/= TSemi) rest)
+
+parseTokens (TWhile:TVar x:xs) = While n (parseTokens s1) : parseTokens s2
+    where (n, (TDo:rest)) = parseBexpWithAexp (TVar x:xs)
+          s1 = takeWhile (/= TSemi) rest
+          s2 = drop 1 (dropWhile (/= TSemi) rest)
+
+parseTokens (TWhile:TNot:xs) = While n (parseTokens s1) : parseTokens s2
+    where (n, (TDo:rest)) = parseBexp (TNot:xs)
+          s1 = takeWhile (/= TSemi) rest
+          s2 = drop 1 (dropWhile (/= TSemi) rest)
+
+parseTokens (TWhile:TTrue:xs) = While n (parseTokens s1) : parseTokens s2
+    where (n, (TDo:rest)) = parseBexp (TTrue:xs)
+          s1 = takeWhile (/= TSemi) rest
+          s2 = drop 1 (dropWhile (/= TSemi) rest)
+
+parseTokens (TWhile:TFalse:xs) = While n (parseTokens s1) : parseTokens s2
+    where (n, (TDo:rest)) = parseBexp (TFalse:xs)
+          s1 = takeWhile (/= TSemi) rest
+          s2 = drop 1 (dropWhile (/= TSemi) rest)
 
 -- parenthesis not working
-separateLists :: [Token] -> ([Token], [Token])
-separateLists [] = ([], [])
-separateLists (TElse : TOpenParen : rest) =
-  case break (== TCloseParen) rest of
-    (insideParen, afterCloseParen) -> ([TElse, TOpenParen] ++ insideParen ++ [TCloseParen], (drop 1 afterCloseParen))
+-- input: Token stream and the separator token
+separateLists :: [Token] -> Token -> ([Token], [Token])
+separateLists [] _ = ([], []) 
+separateLists (start : TOpenParen : rest) token =
+    if start /= token then ([], []) else
+    case break (== TCloseParen) rest of
+        (insideParen, afterCloseParen) -> ([token, TOpenParen] ++ insideParen ++ [TCloseParen], (drop 1 afterCloseParen))
 
-separateLists (TElse : rest) =
-  case break (\t -> t == TSemi || t == TOpenParen) rest of
-    (beforeSemiOrParen, afterSemiOrParen) ->
-      if null afterSemiOrParen
-        then ([TElse] ++ beforeSemiOrParen ++ [TSemi], [])
-        else ([TElse] ++ beforeSemiOrParen ++ [TSemi], (drop 1 afterSemiOrParen))
+separateLists (start : rest) token =
+    if start /= token then ([], []) else
+    case break (\t -> t == TSemi || t == TOpenParen) rest of
+        (beforeSemiOrParen, afterSemiOrParen) ->
+            if null afterSemiOrParen
+                then ([token] ++ beforeSemiOrParen ++ [TSemi], [])
+                else ([token] ++ beforeSemiOrParen ++ [TSemi], (drop 1 afterSemiOrParen))
+
 
 --------------  TEST  ----------------
 
