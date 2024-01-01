@@ -2,6 +2,7 @@
 -- Updated on 15/12/2023
 
 import Data.Char
+import Data.List
 
 -- Part 1
 
@@ -12,7 +13,7 @@ data Inst =
   deriving Show
 type Code = [Inst]
 
-data StackT = I Integer | B Bool deriving Show
+data StackT = I Integer | B Bool deriving (Show, Eq)
 type Stack = [StackT]
 
 type State = [(String, StackT)]
@@ -35,7 +36,7 @@ createEmptyState = [ ]
 
 state2Str :: State -> String
 state2Str [ ] = ""
-state2Str state = init (state2StrHelper state) -- remove last comma from helper
+state2Str state = init (state2StrHelper (sortBy (\(x,_) (y,_) -> compare x y) state)) -- remove last comma from helper
 
 state2StrHelper :: State -> String
 state2StrHelper [ ] = ""
