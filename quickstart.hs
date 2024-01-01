@@ -307,12 +307,12 @@ parseBexpConst (TOpenParen:xs)
 
 parseBexpConst _ = error "parseBexpConst: Parse error"
 
-parseBexp :: [Token] -> (Bexp, [Token])
-parseBexp tokens
+parseBexpWithoutAexp :: [Token] -> (Bexp, [Token])
+parseBexpWithoutAexp tokens
     = case parseBexpConst tokens of
-        (x, TAnd:xs) -> case parseBexp xs of
+        (x, TAnd:xs) -> case parseBexpWithoutAexp xs of
             (y, xs') -> (AAnd x y, xs')
-        (x, TEqBool:xs) -> case parseBexp xs of
+        (x, TEqBool:xs) -> case parseBexpWithoutAexp xs of
             (y, xs') -> (EEq (Bx x) (Bx y), xs')
         (x, xs) -> (x, xs)
 
@@ -324,6 +324,16 @@ parseBexpWithAexp tokens
         (x, TEqArith:xs) -> case parseAexp xs of
             (y, xs') -> (EEq (Ax x) (Ax y), xs')
         (x, xs) -> error "parseBexpWithAexp: Parse error"
+
+parseBexp :: [Token] -> (Bexp, [Token])
+parseBexp tokens
+    | (TConst x) <- head tokens = parseBexpWithAexp tokens
+    | (TVar x) <- head tokens = parseBexpWithAexp tokens
+    | TNot <- head tokens = parseBexpWithoutAexp tokens
+    | TTrue <- head tokens = parseBexpWithoutAexp tokens
+    | TFalse <- head tokens = parseBexpWithoutAexp tokens
+    | TOpenParen <- head tokens = parseBexpWithoutAexp tokens
+    | otherwise = error "parseBexp: Parse error"
 
 parseTokens :: [Token] -> [Stm]
 parseTokens [ ] = [ ]
@@ -341,14 +351,13 @@ parseTokens (TVar x:TAssign:TOpenParen:xs)
     | otherwise = Assign x n : parseTokens sn
     where (n, sn) = parseAexp (TOpenParen:xs)
 
--- parenthesis not working
 parseTokens (TIf:TConst x:xs) = If n (parseTokens s1) (parseTokens s2) : parseTokens s3
-    where (n, (TThen:rest)) = parseBexpWithAexp (TConst x:xs)
+    where (n, (TThen:rest)) = parseBexp (TConst x:xs)
           s1 = takeWhile (/= TElse) rest
           ((TElse:s2), s3) = separateLists (dropWhile (/= TElse) rest) TElse
 
 parseTokens (TIf:TVar x:xs) = If n (parseTokens s1) (parseTokens s2) : parseTokens s3
-    where (n, (TThen:rest)) = parseBexpWithAexp (TVar x:xs)
+    where (n, (TThen:rest)) = parseBexp (TVar x:xs)
           s1 = takeWhile (/= TElse) rest
           ((TElse:s2), s3) = separateLists (dropWhile (/= TElse) rest) TElse
 
@@ -367,12 +376,17 @@ parseTokens (TIf:TFalse:xs) = If n (parseTokens s1) (parseTokens s2) : parseToke
           s1 = takeWhile (/= TElse) rest
           ((TElse:s2), s3) = separateLists (dropWhile (/= TElse) rest) TElse
 
+parseTokens (TIf:TOpenParen:xs) = If n (parseTokens s1) (parseTokens s2) : parseTokens s3
+    where (n, (TThen:rest)) = parseBexp (TOpenParen:xs)
+          s1 = takeWhile (/= TElse) rest
+          ((TElse:s2), s3) = separateLists (dropWhile (/= TElse) rest) TElse
+
 parseTokens (TWhile:TConst x:xs) = While n (parseTokens s1) : parseTokens s2
-    where (n, rest) = parseBexpWithAexp (TConst x:xs)
+    where (n, rest) = parseBexp(TConst x:xs)
           ((TDo:s1), s2) = separateLists (dropWhile (/= TDo) rest) TDo
 
 parseTokens (TWhile:TVar x:xs) = While n (parseTokens s1) : parseTokens s2
-    where (n, rest) = parseBexpWithAexp (TVar x:xs)
+    where (n, rest) = parseBexp(TVar x:xs)
           ((TDo:s1), s2) = separateLists (dropWhile (/= TDo) rest) TDo
 
 parseTokens (TWhile:TNot:xs) = While n (parseTokens s1) : parseTokens s2
@@ -385,6 +399,10 @@ parseTokens (TWhile:TTrue:xs) = While n (parseTokens s1) : parseTokens s2
 
 parseTokens (TWhile:TFalse:xs) = While n (parseTokens s1) : parseTokens s2
     where (n, rest) = parseBexp (TFalse:xs)
+          ((TDo:s1), s2) = separateLists (dropWhile (/= TDo) rest) TDo
+
+parseTokens (TWhile:TOpenParen:xs) = While n (parseTokens s1) : parseTokens s2
+    where (n, rest) = parseBexp (TOpenParen:xs)
           ((TDo:s1), s2) = separateLists (dropWhile (/= TDo) rest) TDo
 
 parseTokens (TOpenParen:xs) = parseTokens (takeWhile (/= TCloseParen) xs) ++ parseTokens (drop 1 (dropWhile (/= TCloseParen) xs))
