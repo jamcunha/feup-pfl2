@@ -368,29 +368,26 @@ parseTokens (TIf:TFalse:xs) = If n (parseTokens s1) (parseTokens s2) : parseToke
           ((TElse:s2), s3) = separateLists (dropWhile (/= TElse) rest) TElse
 
 parseTokens (TWhile:TConst x:xs) = While n (parseTokens s1) : parseTokens s2
-    where (n, (TDo:rest)) = parseBexpWithAexp (TConst x:xs)
-          s1 = takeWhile (/= TSemi) rest
-          s2 = drop 1 (dropWhile (/= TSemi) rest)
+    where (n, rest) = parseBexpWithAexp (TConst x:xs)
+          ((TDo:s1), s2) = separateLists (dropWhile (/= TDo) rest) TDo
 
 parseTokens (TWhile:TVar x:xs) = While n (parseTokens s1) : parseTokens s2
-    where (n, (TDo:rest)) = parseBexpWithAexp (TVar x:xs)
-          s1 = takeWhile (/= TSemi) rest
-          s2 = drop 1 (dropWhile (/= TSemi) rest)
+    where (n, rest) = parseBexpWithAexp (TVar x:xs)
+          ((TDo:s1), s2) = separateLists (dropWhile (/= TDo) rest) TDo
 
 parseTokens (TWhile:TNot:xs) = While n (parseTokens s1) : parseTokens s2
-    where (n, (TDo:rest)) = parseBexp (TNot:xs)
-          s1 = takeWhile (/= TSemi) rest
-          s2 = drop 1 (dropWhile (/= TSemi) rest)
+    where (n, rest) = parseBexp (TNot:xs)
+          ((TDo:s1), s2) = separateLists (dropWhile (/= TDo) rest) TDo
 
 parseTokens (TWhile:TTrue:xs) = While n (parseTokens s1) : parseTokens s2
-    where (n, (TDo:rest)) = parseBexp (TTrue:xs)
-          s1 = takeWhile (/= TSemi) rest
-          s2 = drop 1 (dropWhile (/= TSemi) rest)
+    where (n, rest) = parseBexp (TTrue:xs)
+          ((TDo:s1), s2) = separateLists (dropWhile (/= TDo) rest) TDo
 
 parseTokens (TWhile:TFalse:xs) = While n (parseTokens s1) : parseTokens s2
-    where (n, (TDo:rest)) = parseBexp (TFalse:xs)
-          s1 = takeWhile (/= TSemi) rest
-          s2 = drop 1 (dropWhile (/= TSemi) rest)
+    where (n, rest) = parseBexp (TFalse:xs)
+          ((TDo:s1), s2) = separateLists (dropWhile (/= TDo) rest) TDo
+
+parseTokens (TOpenParen:xs) = parseTokens (takeWhile (/= TCloseParen) xs) ++ parseTokens (drop 1 (dropWhile (/= TCloseParen) xs))
 
 -- Separating correctly but we have problems with parsing parenthesis
 -- input: Token stream and the separator token
