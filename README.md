@@ -183,3 +183,11 @@ The `parse` function is the main point of parsing, taking a string and returning
 #### `testParser`
 
 The `testParser` function is used for testing the program as a whole, getting a string to be parsed, compiled and ran, returing a pair of the string representation of the stack and the state after the execution of the provided code.
+
+---
+
+## Conclusion
+
+The implementation of this project was not successful, only missing on the order of precedence of arithmetic and boolean expressions, but still being able to perform the same operations using parenthesis to force the order of precedence.
+
+Apart from order of precedence every other aspect of the project was successfully implementated, being able to assign an integer to a variable, mathematical operations, boolean operations, if then else statements and while do statements.
