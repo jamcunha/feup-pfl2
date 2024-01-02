@@ -9,7 +9,7 @@ Group T08_G03
 
 # Introduction 
 
-This project consists in a low-level machine ....
+This project consists in the creation of a low-level machine and a compiler for a small imperative programming language.
 
 # Part 1
 
@@ -80,6 +80,66 @@ CallStack (from HasCallStack):
   error, called at quickstart.hs:71:40 in main:Main
 ```
 
+# Part 2
 
+## Data Structures
+
+The data structures for this part of the project are `Exp`, `Aexp`, `Bexp`, and `Stm`. These structures represent expressions, arithmetic expressions, boolean expressions, and statements, respectively. 
+
+### `Exp` (Expression)
+
+The `Exp` is a container that holds either an arithmetic expression (`Ax`) or a boolean expression (`Bx`). It represents any expression in the language.
+
+- **`Ax` (Arithmetic Expression):** Deals with numbers, variables, addition, subtraction, and multiplication.
+- **`Bx` (Boolean Expression):** Deals with `true`, `false`, negation (not), conjunction (and), less than or equal to, and equality.
+
+### `Aexp` (Arithmetic Expression)
+
+Focuses specifically on arithmetic expressions. Includes variables, constants, addition, multiplication, and subtraction.
+
+### `Bexp` (Boolean Expression)
+
+Focuses specifically on boolean expressions. Includes `true`, `false`, negation (not), conjunction (and), less than or equal to, and equality.
+
+### `Stm` (Statement)
+
+Represents a command or instruction in the language. Can be an assignment, conditional statement (`if`), or while loop.
+
+---
+
+## Compiler Implementation Details
+
+### 1. Expression Compilation
+
+#### `compE` (Compile Expression)
+
+The `compE` function is responsible for translating high-level expressions (`Exp`) into a sequence of low-level instructions (`Code`). This process involves handling both arithmetic (`Ax`) and boolean (`Bx`) expressions.
+
+#### `compA` and `compB` Functions
+
+- **`compA` (Compile Arithmetic Expression):**
+  - Translates arithmetic expressions (`Aexp`) into a series of low-level instructions (`Code`).
+  - Deals with variables, constants, addition, subtraction, and multiplication.
+
+- **`compB` (Compile Boolean Expression):**
+  - Translates boolean expressions (`Bexp`) into equivalent low-level instructions (`Code`).
+  - Handles `true`, `false`, negation (not), conjunction (and), less than or equal to, and equality.
+
+### 2. Statement Compilation
+
+#### `compile` Function
+
+The `compile` function transforms a sequence of high-level statements (`Stm`) into executable low-level code (`Code`). This process encompasses various language constructs, such as assignments, conditional statements, and while loops.
+
+#### Statement Types
+
+- **Assignment:**
+  - Handles statements like `x := 5;`, translating them into code that updates the value of the variable `x`.
+
+- **Conditional Statements:**
+  - Translates conditional statements like `if (x > 0) then ... else ...` into code that evaluates the condition and executes the appropriate branch.
+
+- **While Loops:**
+  - Converts while loops such as `while (x > 0) do ...` into code that repeatedly executes the specified block as long as the condition holds.
 
 
