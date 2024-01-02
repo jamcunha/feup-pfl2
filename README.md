@@ -184,6 +184,50 @@ The `parse` function is the main point of parsing, taking a string and returning
 
 The `testParser` function is used for testing the program as a whole, getting a string to be parsed, compiled and ran, returing a pair of the string representation of the stack and the state after the execution of the provided code.
 
+
+### Examples
+
+**`Compiler`**
+
+```haskell
+ghci> compile [Assign "x" (AAdd (Const 2) (Const 3))]
+[Push 3,Push 2,Add,Store "x"]
+
+ghci> compile [If (NNeg (AAnd TRUE FALSE)) [Assign "x" (Const 10)] [Assign "y" (Const 20)]]
+[Fals,Tru,And,Neg,Branch [Push 10,Store "x"] [Push 20,Store "y"]]
+```
+
+**`Parser`**
+
+```haskell
+ghci> parse "x := 2 + 3;"
+[Assign "x" (AAdd (Const 2) (Const 3))]
+
+ghci> parse "if not (True and False) then x := 10; else y:= 20;"
+[If (NNeg (AAnd TRUE FALSE)) [Assign "x" (Const 10)] [Assign "y" (Const 20)]]
+```
+
+**`Lexer`**
+
+```haskell
+ghci> lexer "x := 5; y := x + 2;"
+[TVar "x",TAssign,TConst 5,TSemi,TVar "y",TAssign,TVar "x",TPlus,TConst 2,TSemi]
+
+ghci> lexer "if not (True and False) then x := 10; else y:= 20;"
+[TIf,TNot,TOpenParen,TTrue,TAnd,TFalse,TCloseParen,TThen,TVar "x",TAssign,TConst 10,TSemi,TElse,TVar "y",TAssign,TConst 20,TSemi]
+```
+
+
+**`testParser`**
+
+```haskell
+ghci> testParser "if not (True and False) then x := 10; else y:= 20;"
+("","x=10")
+
+ghci> testParser "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);"
+("","x=2,y=-10,z=6")
+```
+
 ---
 
 ## Conclusion
