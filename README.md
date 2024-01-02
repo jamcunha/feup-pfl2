@@ -1,15 +1,15 @@
 # TP2 - Haskell Project
 Group T08_G03
 
-| Name                        | UP                                        | Contribuition |
-| ------------                | ------------                              |------------   |
-| Joaquim Afonso Marques da Cunha    | up202108779 |            |
-| João Pedro Carvalho Correia   | up202005015 |            |
+| Name                                | UP          | Contribuition |
+|:-----------------------------------:|:-----------:|:-------------:|
+| Joaquim Afonso Marques da Cunha     | up202108779 | 55%           |
+| João Pedro Carvalho Correia         | up202005015 | 45%           |
 
 
 # Introduction 
 
-This project consists in the creation of a low-level machine and a compiler for a small imperative programming language.
+This project consists in the creation of a low-level machine and a compiler for a small imperative programming language consisting of arithmetic and boolean expressions, assignments, conditional statements, and while loops. The compiler translates the high-level language into low-level instructions that can be executed by the machine.
 
 # Part 1
 
