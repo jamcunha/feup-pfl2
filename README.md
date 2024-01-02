@@ -16,9 +16,9 @@ This project consists in the creation of a low-level machine and a compiler for 
 ### Data Definitions
 
 The data definitions for the stack machine include three main data types:
-1. **Inst:** Represents the stack machine instructions. Instructions can be arithmetic operations (Push, Add, Mult, Sub), boolean operations (Tru, Fals, Equ, Le, And, Neg), memory operations (Fetch, Store), control flow operations (Noop, Branch, Loop).
+1. **Inst:** Represents the stack machine instructions. Instructions can be arithmetic operations (Add, Mult, Sub), boolean operations (Tru, Fals, Equ, Le, And, Neg), memory operations (Fetch, Store), control flow operations (Noop, Branch, Loop) or pushing a value to the stack (Push).
 2. **StackT:** Represents the stack items. The stack can contain either integers (`I Integer`) or booleans (`B Bool`).
-3. **State:** Represents the state of the memory, which is a list of pairs associating variable names with their corresponding stack items.
+3. **State:** Represents the state of the memory, which is a list of pairs associating variable names with their respective value.
 
 ### Functions
 
@@ -142,4 +142,44 @@ The `compile` function transforms a sequence of high-level statements (`Stm`) in
 - **While Loops:**
   - Converts while loops such as `while (x > 0) do ...` into code that repeatedly executes the specified block as long as the condition holds.
 
+---
 
+## Parser Implementation Details
+
+### 1. Lexer
+
+#### `Token`
+
+The `Token` data type is used to represent the code string in an easier form to work with in our parser, obtained using a lexer
+
+#### `lexer`
+
+The `lexer` function cuts the input code string into tokens representing the source code using pattern matching.
+`testLexer` and `testLexerTemplate` are auxiliary functions implemented to easily test our code while developing the lexer.
+
+### 2. Parser
+
+#### `parseAexpConstVar` and `parseAexp`
+
+The `parseAexpConstVar` and the `parseAexp` are helper funtions of the `parseTokens` function responsible for parsing tokens into arithmetic expressions.
+
+#### `parseBexpConst`, `parseBexpWithoutAexp`, `ParseBexpWithAexp` and `parseBexp`
+
+The `parseBexp` function and respective helper functions are used to parse booleans expressions from a tokens list.
+
+#### `separateLists`
+
+The `separateLists` function is a function that takes a list of tokens and the token where the separation is occuring
+
+#### `parseTokens`
+
+The `parseTokens` function is responsible for parsing all tokens into statements, with the help of `separateLists` with `if` and `while` statements
+to parse the right tokens in the statement body and the remaining tokens after.
+
+#### `parse`
+
+The `parse` function is the main point of parsing, taking a string and returning a list of statements ready to be compiled.
+
+#### `testParser`
+
+The `testParser` function is used for testing the program as a whole, getting a string to be parsed, compiled and ran, returing a pair of the string representation of the stack and the state after the execution of the provided code.

@@ -407,7 +407,6 @@ parseTokens (TWhile:TOpenParen:xs) = While n (parseTokens s1) : parseTokens s2
 
 parseTokens (TOpenParen:xs) = parseTokens (takeWhile (/= TCloseParen) xs) ++ parseTokens (drop 1 (dropWhile (/= TCloseParen) xs))
 
--- Separating correctly but we have problems with parsing parenthesis
 -- input: Token stream and the separator token
 separateLists :: [Token] -> Token -> ([Token], [Token])
 separateLists [] _ = ([], []) 
